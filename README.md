@@ -16,6 +16,7 @@ SquadControl does **not** create, replace, or modify Playerbots on its own. It r
 - Select individual bots or act on the entire group.
 - Use quick controls for combat, follow, stay, summon, recovery, and supported group actions.
 - Manage tactics, formations, strategies, equipment, and bot inventory where the realm permits it.
+- Detect a compatible Dungeon Clear module automatically and expose its controls only when the module is available on the realm.
 - Use safeguards and confirmations for destructive inventory actions.
 - Access diagnostics and addon settings, including display and minimap controls.
 - Use a localization-ready interface designed to keep visible text separate from server command payloads.
@@ -27,6 +28,10 @@ SquadControl does **not** create, replace, or modify Playerbots on its own. It r
 - A player account allowed to use the relevant Playerbot features on that realm.
 
 Server configurations differ. A button can only work when its corresponding Playerbot capability and command are enabled by the server administrator.
+
+### Optional Dungeon Clear support
+
+SquadControl automatically checks whether a compatible Dungeon Clear module is available on the realm. When it is detected, the related controls become available in the addon. If the module is not installed, disabled, or incompatible, SquadControl continues to work normally without showing unsupported Dungeon Clear actions.
 
 ## Installation
 
