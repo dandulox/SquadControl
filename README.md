@@ -16,6 +16,7 @@ SquadControl does **not** create, replace, or modify Playerbots on its own. It r
 - Select individual bots or act on the entire group.
 - Use quick controls for combat, follow, stay, summon, recovery, and supported group actions.
 - Manage tactics, formations, strategies, equipment, and bot inventory where the realm permits it.
+- Load and dismiss logged-out characters from the player's own account as Playerbots, with a locally saved Twink list.
 - Detect a compatible Dungeon Clear module automatically and expose its controls only when the module is available on the realm.
 - Use safeguards and confirmations for destructive inventory actions.
 - Access diagnostics and addon settings, including display and minimap controls.
@@ -69,6 +70,10 @@ SquadControl is designed to read the language of the WoW client automatically an
 ## Usage
 
 Once installed, open SquadControl through its in-game entry point or configured key binding. Select a Playerbot or squad action, review any confirmation prompt, and let SquadControl send the supported request to the Playerbot module.
+
+### Own characters as Playerbots
+
+On the **Bots** page, use **Own characters as bots** to save a character name locally, load it as a Playerbot, or dismiss it again. The character must be logged out. The server remains authoritative: it verifies that the character belongs to your account and that `AiPlayerbot.AllowAccountBots` is enabled. The addon never changes character data; it sends the module's existing `add` and `remove` requests.
 
 The exact available actions depend on the server configuration and on the version of the Playerbot module in use. Realm administrators may disable particular commands or features.
 

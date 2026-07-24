@@ -47,7 +47,7 @@ end)
 
 UNBOT2 = UNBOT2 or {}
 
-UNBOT2.VERSION = "2.0.13"
+UNBOT2.VERSION = "2.1.0"
 UNBOT2.ADDON_PREFIX = "UNBOT2"
 
 UNBOT2.CLASS_ORDER = {
@@ -371,6 +371,7 @@ function U.InitializeDB()
     UnBot2DB.builder.groupSize = tonumber(UnBot2DB.builder.groupSize) or (UnBot2DB.builder.size + 1)
     UnBot2DB.builder.slots = type(UnBot2DB.builder.slots) == "table" and UnBot2DB.builder.slots or {}
     UnBot2DB.profiles = UnBot2DB.profiles or {}
+    UnBot2DB.altCharacters = type(UnBot2DB.altCharacters) == "table" and UnBot2DB.altCharacters or {}
     UnBot2DB.combat = UnBot2DB.combat or { toggles = {}, compact = false }
     UnBot2DB.combat.toggles = type(UnBot2DB.combat.toggles) == "table" and UnBot2DB.combat.toggles or {}
     if UnBot2DB.combat.compact == nil then UnBot2DB.combat.compact = false end
@@ -482,6 +483,61 @@ function U.SendConsole(command)
     SendChatMessage(command, "SAY")
     if UnBot2DB.settings.chatFeedback then U.Print(command) end
     return true
+end
+
+function U.GetAltCharacters()
+    return UnBot2DB.altCharacters or {}
+end
+
+function U.NormalizeAltCharacterName(name)
+    name = tostring(name or ""):gsub("^%s*(.-)%s*$", "%1")
+    if name == "" or string.find(name, "%s") then
+        U.Print("Bitte einen gültigen Charakternamen eingeben.", true)
+        return nil
+    end
+    if name == UnitName("player") then
+        U.Print("Der aktuell gespielte Charakter kann nicht als Bot geladen werden.", true)
+        return nil
+    end
+    return name
+end
+
+function U.RememberAltCharacter(name)
+    name = U.NormalizeAltCharacterName(name)
+    if not name then return false end
+    local alts = U.GetAltCharacters()
+    for _, knownName in ipairs(alts) do
+        if string.lower(knownName) == string.lower(name) then return true end
+    end
+    table.insert(alts, name)
+    table.sort(alts)
+    U.Print(name .. " wurde als eigener Charakter gespeichert.")
+    return true
+end
+
+function U.ForgetAltCharacter(name)
+    local alts = U.GetAltCharacters()
+    for index, knownName in ipairs(alts) do
+        if knownName == name then
+            table.remove(alts, index)
+            U.Print(name .. " wurde aus der Twink-Liste entfernt.")
+            return true
+        end
+    end
+    return false
+end
+
+function U.LoadAltCharacter(name)
+    name = U.NormalizeAltCharacterName(name)
+    if not name then return false end
+    U.RememberAltCharacter(name)
+    return U.SendConsole(".playerbot bot add " .. name)
+end
+
+function U.UnloadAltCharacter(name)
+    name = U.NormalizeAltCharacterName(name)
+    if not name then return false end
+    return U.SendConsole(".playerbot bot remove " .. name)
 end
 
 function U.SendCommand(command, targetMode)
@@ -1666,12 +1722,59 @@ local function CreateBots()
         local itemDef = item
         Button(manage, itemDef[1], 12, -42 - ((index - 1) * 38), 178, 30, itemDef[2])
     end
-    local info = Section(page, "Bot-Informationen", 8, -337, 614, 160)
-    local infoActions = { { "Wer / Spec", "who" }, { "Talente", "talents" }, { "Zauber", "spells" }, { "Berufe", "who" }, { "Ruf", "reputation" }, { "PvP-Status", "pvp stats" }, { "Angreifer", "attackers" }, { "Hilfe", "help" } }
+    local alts = Section(page, "Eigene Charaktere als Bots", 8, -337, 402, 160)
+    Label(alts, "Ausgeloggte Charaktere deines Accounts laden und steuern.", "GameFontNormalSmall", 12, -37):SetTextColor(0.65, 0.75, 0.85)
+    local altName = EditBox(alts, 12, -60, 176, "Charaktername")
+    local selectedAlt = nil
+    altName:SetScript("OnTextChanged", function(_, userInput)
+        if userInput then selectedAlt = nil end
+    end)
+    local function GetEnteredAlt()
+        if altName:GetText() == altName.placeholder then
+            U.Print("Bitte zuerst einen Charakternamen eingeben.", true)
+            return nil
+        end
+        return U.NormalizeAltCharacterName(altName:GetText())
+    end
+    local function GetSelectedAlt()
+        if selectedAlt and altName:GetText() == selectedAlt then return selectedAlt end
+        return GetEnteredAlt()
+    end
+    local altDropdown = Dropdown(alts, 205, -60, 166, function()
+        local items = {}
+        for _, name in ipairs(U.GetAltCharacters()) do table.insert(items, { text = name, value = name }) end
+        return items
+    end, function(value)
+        selectedAlt = value
+        altName:SetText(value)
+    end)
+    Button(alts, "Merken", 12, -94, 84, 27, function()
+        local name = GetEnteredAlt()
+        if name and U.RememberAltCharacter(name) then
+            selectedAlt = name
+            UIDropDownMenu_SetText(altDropdown, selectedAlt or "")
+        end
+    end, "Speichert den Namen nur lokal im Addon.")
+    Button(alts, "Als Bot laden", 104, -94, 132, 27, function()
+        local name = GetSelectedAlt()
+        if name and U.LoadAltCharacter(name) then selectedAlt = name; UIDropDownMenu_SetText(altDropdown, name) end
+    end, "Der Charakter muss ausgeloggt sein und vom selben Account stammen.", ".playerbot bot add CHARAKTERNAME")
+    Button(alts, "Abmelden", 244, -94, 104, 27, function()
+        local name = GetSelectedAlt()
+        if name then U.UnloadAltCharacter(name) end
+    end, "Meldet diesen eigenen Charakter als Bot wieder ab.", ".playerbot bot remove CHARAKTERNAME")
+    Button(alts, "Aus Liste löschen", 12, -126, 148, 25, function()
+        local name = GetSelectedAlt()
+        if name and U.ForgetAltCharacter(name) then selectedAlt = nil; altName:SetText(""); UIDropDownMenu_SetText(altDropdown, "") end
+    end, "Entfernt nur den gespeicherten Namen; der Charakter wird nicht gelöscht.")
+    Label(alts, "Der Server prüft weiterhin Besitz, Berechtigung und ob der Charakter offline ist.", "GameFontNormalSmall", 12, -151):SetTextColor(0.75, 0.65, 0.45)
+
+    local info = Section(page, "Bot-Informationen", 420, -337, 202, 160)
+    local infoActions = { { "Wer / Spec", "who" }, { "Talente", "talents" }, { "Zauber", "spells" }, { "Berufe", "who" }, { "Ruf", "reputation" }, { "PvP", "pvp stats" }, { "Angreifer", "attackers" }, { "Hilfe", "help" } }
     for index, action in ipairs(infoActions) do
         local actionDef = action
-        local col = (index - 1) % 4; local row = math.floor((index - 1) / 4)
-        Button(info, actionDef[1], 12 + (col * 147), -42 - (row * 38), 138, 29, function() U.SendBot(U.runtime.selectedBot, actionDef[2]) end, nil, actionDef[2])
+        local col = (index - 1) % 2; local row = math.floor((index - 1) / 2)
+        Button(info, actionDef[1], 12 + (col * 91), -42 - (row * 28), 84, 23, function() U.SendBot(U.runtime.selectedBot, actionDef[2]) end, nil, actionDef[2])
     end
 end
 
